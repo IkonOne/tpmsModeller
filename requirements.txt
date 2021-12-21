@@ -1,0 +1,4 @@
+numpy
+pyside6
+vedo
+vtk
