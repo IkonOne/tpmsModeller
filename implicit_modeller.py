@@ -117,6 +117,8 @@ class TPMSRenderer:
         self._roadWidth = roadWidth
         self._roadCount = roadCount
         self._dimensions = dimensions
+        self._porosity = 0.0
+        self.cb_updated = None
         self._update()
     
     def _update(self):
@@ -161,15 +163,31 @@ class TPMSRenderer:
             cols = colorMap([0,1], 'rainbow', vmin=0, vmax=1)
         else:
             cols = colorMap(range(n), 'rainbow')
+        
+        V = -np.ones_like(x)
+        min_offset = np.min(offsets)
+        max_offset = np.max(offsets)
         for i in range(n):
             U = self._fn(x,y,z, offsets[i])
+            if offsets[i] == max_offset:
+                V = np.maximum(V, U)
+            elif offsets[i] == min_offset:
+                V = np.maximum(V, -U)
+
             isos = Volume(U, dims=U.shape).isosurface(threshold=0)
             isos.scale(1/scale * self._dimensions)
             isos.c(cols[i])
             self._plotter += isos
             self._isos.append(isos)
         
+        empty_voxels = np.count_nonzero(V > 0)
+        total_voxels = V.shape[0]*V.shape[1]*V.shape[2]
+        self._porosity = empty_voxels / total_voxels
+        
         self._plotter.window.Render()
+
+        if self.cb_updated:
+            self.cb_updated()
              
     def setTPMSfunc(self, fn):
         self._fn = fn
@@ -279,8 +297,16 @@ def main(argv):
         )
         vedo.io.write(merge(tpms._plotter.actors), filename)
     export_btn.clicked.connect(export_tpms)
-
     editor_layout.addWidget(export_btn)
+
+    row = 7
+    editor_layout.setRowStretch(row, 0)
+    editor_layout.setRowMinimumHeight(row, 20)
+    editor_layout.addWidget(QLabel("Porosity:"), row, 0)
+    porosity_text = QLineEdit("0.0")
+    porosity_text.setReadOnly(True)
+    editor_layout.addWidget(porosity_text)
+
 
     vtk_widget = QVTKRenderWindowInteractor(window)
     main_layout.addWidget(vtk_widget, stretch=1)
@@ -298,6 +324,11 @@ def main(argv):
     road_width_text.textChanged.connect(tpms.setRoadWidth)
     road_count_text.textChanged.connect(tpms.setRoadCount)
     resoltuion_text.textChanged.connect(tpms.setResolution)
+
+    def handle_tpms_update():
+        porosity_text.setText(f'%{tpms._porosity*100:2f}')
+    tpms.cb_updated = handle_tpms_update
+    tpms._update()
 
     vp.show(bg='blackboard', axes=8)
 
