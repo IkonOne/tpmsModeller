@@ -164,15 +164,8 @@ class TPMSRenderer:
         else:
             cols = colorMap(range(n), 'rainbow')
         
-        V = -np.ones_like(x)
-        min_offset = np.min(offsets)
-        max_offset = np.max(offsets)
         for i in range(n):
             U = self._fn(x,y,z, offsets[i])
-            if offsets[i] == max_offset:
-                V = np.maximum(V, U)
-            elif offsets[i] == min_offset:
-                V = np.maximum(V, -U)
 
             isos = Volume(U, dims=U.shape).isosurface(threshold=0)
             isos.scale(1/scale * self._dimensions)
@@ -180,6 +173,12 @@ class TPMSRenderer:
             self._plotter += isos
             self._isos.append(isos)
         
+        V = -np.ones_like(x)
+        rw = self._roadWidth * mm_2_rad * 0.5
+        max_offset = np.max(offsets) + rw
+        V = self._fn(x, y, z, max_offset)
+        min_offset = np.min(offsets) - rw
+        V = np.maximum(V, -self._fn(x, y, z, min_offset))
         empty_voxels = np.count_nonzero(V > 0)
         total_voxels = V.shape[0]*V.shape[1]*V.shape[2]
         self._porosity = empty_voxels / total_voxels
