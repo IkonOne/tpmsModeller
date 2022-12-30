@@ -4,6 +4,10 @@ Generates non-manifold meshes for the triply periodic minimal surfaces Gyroid an
 Developed to enable 3D printing of scaffolds for bone tissue reconstruction.
 The project was completed at Colorado State University under the advisement of Professors David Prawel and Clayton Shonkwiler for partial fulfillment of an undergraduate research course.
 
+# Python Version
+
+Python version 3.9 is required.
+
 # Citation
 
 If you find this software insightful and use it in your research or elsewhere, please cite it.
