@@ -6,16 +6,19 @@ from PySide6.QtWidgets import (
     QComboBox,
     QFileDialog,
     QFrame,
-    QGridLayout,
     QHBoxLayout,
     QLabel,
     QLineEdit,
     QMainWindow,
+    QVBoxLayout,
     QWidget
 )
 from PySide6.QtGui import (
     QDoubleValidator,
     QIntValidator,
+)
+from PySide6.QtCore import (
+    Qt
 )
 
 from vtkmodules.vtkFiltersSources import vtkConeSource
@@ -119,9 +122,9 @@ class TPMSRenderer:
         self._dimensions = dimensions
         self._porosity = 0.0
         self.cb_updated = None
-        self._update()
+        self.update()
     
-    def _update(self):
+    def update(self):
         if self._fn == None:
             return
         if self._resolution <= 0:
@@ -190,27 +193,22 @@ class TPMSRenderer:
              
     def setTPMSfunc(self, fn):
         self._fn = fn
-        self._update()
+        self.update()
     
     def setDimensions(self, dimensions):
         self._dimensions = float(dimensions)
-        self._update()
-    
+
     def setPeriods(self, periods):
         self._periods = float(periods)
-        self._update()
-    
+
     def setResolution(self, resolution):
         self._resolution = float(resolution)
-        self._update()
-    
+
     def setRoadWidth(self, width):
         self._roadWidth = float(width)
-        self._update()
 
     def setRoadCount(self, roadCount):
         self._roadCount = int(roadCount)
-        self._update()
 
 def main(argv):
     # every QT app needs an app
@@ -226,108 +224,137 @@ def main(argv):
     frame.setLayout(main_layout)
 
     editor_widget = QWidget()
-    editor_layout = QGridLayout()
-    editor_layout.setColumnMinimumWidth(0, 50)
-    editor_layout.setColumnMinimumWidth(1, 50)
+    editor_layout = QVBoxLayout()
     editor_widget.setLayout(editor_layout)
     main_layout.addWidget(editor_widget, stretch=0)
 
-    row = 0
-    editor_layout.setRowStretch(row, 0)
-    editor_layout.setRowMinimumHeight(row, 20)
-    editor_layout.addWidget(QLabel("TPMS"))
-    combo = QComboBox()
-    combo.addItems(['Gyroid', 'Fisher-Koch S'])
-    editor_layout.addWidget(combo)
+    vtk_widget = QVTKRenderWindowInteractor(window)
+    main_layout.addWidget(vtk_widget, stretch=1)
 
-    row = 1
-    editor_layout.setRowStretch(row, 0)
-    editor_layout.setRowMinimumHeight(row, 20)
-    editor_layout.addWidget(QLabel("Dimensions (mm)"), row, 0)
-    dimensions_text = QLineEdit("50.0")
-    dimensions_text.setValidator(QDoubleValidator(0.0, 1000.0, 4, dimensions_text))
-    editor_layout.addWidget(dimensions_text)
+    vp = Plotter(qtWidget=vtk_widget)
+    fns = [gyroid, fks]
+    tpms = TPMSRenderer(vp, fns[0], 1.0, 50.0, 0.5)
 
-    row = 2
-    editor_layout.setRowStretch(row, 0)
-    editor_layout.setRowMinimumHeight(row, 20)
-    editor_layout.addWidget(QLabel("Periods"), row, 0)
-    period_text = QLineEdit("1.0")
-    period_text.setValidator(QDoubleValidator(0.0, 100.0, 4, period_text))
-    editor_layout.addWidget(period_text)
-
-    row = 3
-    editor_layout.setRowStretch(row, 0)
-    editor_layout.setRowMinimumHeight(row, 20)
-    editor_layout.addWidget(QLabel("Road Width (mm)"), row, 0)
-    road_width_text = QLineEdit("0.5")
-    road_width_text.setValidator(
-        QDoubleValidator(0.001, 100.0, 4, road_width_text)
-    )
-    editor_layout.addWidget(road_width_text)
-
-    row = 4
-    editor_layout.setRowStretch(row, 0)
-    editor_layout.setRowMinimumHeight(row, 20)
-    editor_layout.addWidget(QLabel("Road Count"), row, 0)
-    road_count_text = QLineEdit("3")
-    road_count_text.setValidator(
-        QIntValidator(0, 50, road_count_text)
-    )
-    editor_layout.addWidget(road_count_text)
-
-    row = 5
-    editor_layout.setRowStretch(row, 0)
-    editor_layout.setRowMinimumHeight(row, 20)
-    editor_layout.addWidget(QLabel("Resolution"), row, 0)
-    resoltuion_text = QLineEdit("0.05")
-    resoltuion_text.setValidator(
-        QDoubleValidator(0.001, 1.0, 4, resoltuion_text)
-    )
-    editor_layout.addWidget(resoltuion_text)
-
-    row = 6
-    editor_layout.setRowStretch(row,0)
-    editor_layout.setRowMinimumHeight(row, 20)
-    export_btn = QPushButton('Export')
     def export_tpms(e):
         filename, _ = QFileDialog.getSaveFileName(
             window, 'Export STL', f'{os.getcwd()}/{combo.currentText}_{period_text.text}.stl', 'STL File (*.stl)'
         )
         vedo.io.write(merge(tpms._plotter.actors), filename)
+    export_btn = QPushButton('Export')
     export_btn.clicked.connect(export_tpms)
     editor_layout.addWidget(export_btn)
 
-    row = 7
-    editor_layout.setRowStretch(row, 0)
-    editor_layout.setRowMinimumHeight(row, 20)
-    editor_layout.addWidget(QLabel("Porosity:"), row, 0)
-    porosity_text = QLineEdit("0.0")
-    porosity_text.setReadOnly(True)
-    editor_layout.addWidget(porosity_text)
+    hline = QFrame()
+    hline.setFrameShape(QFrame.Shape.HLine)
+    hline.setFrameShadow(QFrame.Shadow.Sunken)
+    editor_layout.addWidget(hline)
 
+    tpms_layout = QHBoxLayout()
+    editor_layout.addLayout(tpms_layout)
+    tpms_layout.addWidget(QLabel("TPMS"))
+    combo = QComboBox()
+    combo.addItems(['Gyroid', 'Fisher-Koch S'])
+    tpms_layout.addWidget(combo)
 
-    vtk_widget = QVTKRenderWindowInteractor(window)
-    main_layout.addWidget(vtk_widget, stretch=1)
+    dimensions_layout = QHBoxLayout()
+    editor_layout.addLayout(dimensions_layout)
+    dimensions_layout.addWidget(QLabel("Dimensions (mm)"))
+    dimensions_text = QLineEdit("50.0")
+    dimensions_text.setAlignment(Qt.AlignmentFlag.AlignRight)
+    dimensions_text.setValidator(QDoubleValidator(0.0, 1000.0, 4, dimensions_text))
+    dimensions_layout.addWidget(dimensions_text)
+
+    period_layout = QHBoxLayout()
+    editor_layout.addLayout(period_layout)
+    period_layout.addWidget(QLabel("Periods"))
+    period_text = QLineEdit("1.0")
+    period_text.setAlignment(Qt.AlignmentFlag.AlignRight)
+    period_text.setValidator(QDoubleValidator(0.0, 100.0, 4, period_text))
+    period_layout.addWidget(period_text)
+
+    road_width_layout = QHBoxLayout()
+    editor_layout.addLayout(road_width_layout)
+    road_width_layout.addWidget(QLabel("Road Width (mm)"))
+    road_width_text = QLineEdit("0.5")
+    road_width_text.setAlignment(Qt.AlignmentFlag.AlignRight)
+    road_width_text.setValidator(
+        QDoubleValidator(0.001, 100.0, 4, road_width_text)
+    )
+    road_width_layout.addWidget(road_width_text)
+
+    road_count_layout = QHBoxLayout()
+    editor_layout.addLayout(road_count_layout)
+    road_count_layout.addWidget(QLabel("Road Count"))
+    road_count_text = QLineEdit("3")
+    road_count_text.setAlignment(Qt.AlignmentFlag.AlignRight)
+    road_count_text.setValidator(
+        QIntValidator(0, 50, road_count_text)
+    )
+    road_count_layout.addWidget(road_count_text)
+
+    resolution_layout = QHBoxLayout()
+    editor_layout.addLayout(resolution_layout)
+    resolution_layout.addWidget(QLabel("Resolution"))
+    resolution_text = QLineEdit("0.05")
+    resolution_text.setAlignment(Qt.AlignmentFlag.AlignRight)
+    resolution_text.setValidator(
+        QDoubleValidator(0.001, 1.0, 4, resolution_text)
+    )
+    resolution_layout.addWidget(resolution_text)
+
+    export_btn = QPushButton('Update')
+    export_btn.clicked.connect(tpms.update)
+    editor_layout.addWidget(export_btn)
+
+    dimensions_text.returnPressed.connect(export_btn.click)
+    period_text.returnPressed.connect(export_btn.click)
+    road_width_text.returnPressed.connect(export_btn.click)
+    road_count_text.returnPressed.connect(export_btn.click)
+    resolution_text.returnPressed.connect(export_btn.click)
+
+    hline = QFrame()
+    hline.setFrameShape(QFrame.Shape.HLine)
+    hline.setFrameShadow(QFrame.Shadow.Sunken)
+    editor_layout.addWidget(hline)
+
+    porosity_layout = QHBoxLayout()
+    editor_layout.addLayout(porosity_layout)
+    porosity_label = QLabel('Porosity')
+    porosity_label.setAlignment(Qt.AlignmentFlag.AlignLeft)
+    porosity_layout.addWidget(porosity_label)
+    porosity_text = QLabel('0.0')
+    porosity_text.setAlignment(Qt.AlignmentFlag.AlignRight)
+    porosity_layout.addWidget(porosity_text)
+
+    controls_layout = QHBoxLayout()
+    editor_layout.addLayout(controls_layout)
+    controls_label = QLabel('''Controls:
+        Enter: When editing a textbox, updates model
+        R: Center view on model
+        W: Wireframe rendering
+        S: Solid rendering
+        Shift+F: Zoom to mouse on model
+        Mouse1: Rotate view around center
+        Scroll Wheel: Zoom in/out
+        Shift + Mouse1: Move view
+    ''')
+    controls_label.setMaximumHeight(160)
+    controls_layout.addWidget(controls_label)
 
     # if you don't want the 'q' key to exit comment this.
     # widget.AddObserver("ExitEvent", lambda o, e, a=app: a.quit())
 
-    vp = Plotter(qtWidget=vtk_widget)
-
-    fns = [gyroid, fks]
-    tpms = TPMSRenderer(vp, fns[0], 1.0, 50.0, 0.5)
     combo.currentIndexChanged.connect(lambda idx : tpms.setTPMSfunc(fns[idx]))
     dimensions_text.textChanged.connect(tpms.setDimensions)
     period_text.textChanged.connect(tpms.setPeriods)
     road_width_text.textChanged.connect(tpms.setRoadWidth)
     road_count_text.textChanged.connect(tpms.setRoadCount)
-    resoltuion_text.textChanged.connect(tpms.setResolution)
+    resolution_text.textChanged.connect(tpms.setResolution)
 
     def handle_tpms_update():
         porosity_text.setText(f'%{tpms._porosity*100:2f}')
     tpms.cb_updated = handle_tpms_update
-    tpms._update()
+    tpms.update()
 
     vp.show(bg='blackboard', axes=8)
 
